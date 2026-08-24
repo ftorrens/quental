@@ -1,58 +1,184 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Backend Laravel — Rick and Morty API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+## 📖 Acerca del proyecto
 
-## About Laravel
+Backend desarrollado en **Laravel**, con soporte para **Laravel Sail (Docker)** e integración con la API externa de **Rick and Morty**.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+El proyecto está diseñado siguiendo una arquitectura organizada y mantenible, utilizando diferentes patrones y herramientas para facilitar la gestión y transformación de los datos.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### Características principales
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+* 🔌 Integración con la **API de Rick and Morty**.
+* 📦 Gestión de entidades mediante **DTOs (Data Transfer Objects)**.
+* 🔄 Transformación de datos mediante **Mappers**.
+* 🔗 Gestión de relaciones complejas entre entidades.
+* 🗄️ Persistencia de datos mediante **Eloquent ORM**.
+* 🐳 Entorno de desarrollo mediante **Docker + Laravel Sail**.
+* 🔄 Sincronización paginada de datos desde la API externa.
+* 📚 Documentación interactiva mediante **Swagger / OpenAPI**.
+* 🧪 Suite de pruebas automatizadas.
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## 🚀 Guía de inicio rápido
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### Requisitos previos
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+Antes de comenzar, asegúrate de tener instaladas las siguientes herramientas:
 
-## Agentic Development
+* **Docker**
+* **Docker Compose**
+* **Git**
+* **Composer**
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+### 1. Instalar las dependencias de PHP
+
+Instala las dependencias del proyecto utilizando Composer:
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer install
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+### 2. Configurar el archivo de entorno
 
-## Contributing
+Copia el archivo de configuración `.env.example`:
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+cp .env.example .env
+```
 
-## Code of Conduct
+A continuación, revisa y configura las variables de entorno necesarias en el archivo `.env`, y coloca preferentemente la clave entregada de la base de datos en la variable DB_PASSWORD:.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### 3. Levantar los contenedores con Laravel Sail
 
-## Security Vulnerabilities
+Inicia los contenedores Docker utilizando Laravel Sail:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```bash
+./vendor/bin/sail up -d
+```
 
-## License
+Una vez ejecutado el comando, los servicios definidos por el proyecto estarán disponibles dentro de los contenedores Docker.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### 4. Generar la clave de la aplicación
+
+Genera la clave de cifrado de Laravel:
+
+```bash
+sail artisan key:generate
+```
+
+### 5. Ejecutar las migraciones
+
+Crea las tablas necesarias en la base de datos:
+
+```bash
+sail artisan migrate
+```
+
+---
+
+## 🧬 Sincronización de datos de Rick and Morty
+
+El proyecto dispone de un comando Artisan personalizado para obtener los datos de la API de **Rick and Morty** y almacenarlos en la base de datos local.
+
+La sincronización se realiza de forma **paginada**, permitiendo procesar los datos de la API de manera eficiente.
+
+Para iniciar la sincronización:
+
+```bash
+sail artisan rickandmorty:sync
+```
+
+Este comando se encarga de consultar la API externa y almacenar la información correspondiente en la base de datos.
+
+---
+
+## 📚 Documentación de la API
+
+La API está documentada mediante **L5-Swagger**, utilizando el estándar **OpenAPI**.
+
+La documentación proporciona una interfaz interactiva desde la que es posible consultar los endpoints disponibles y realizar peticiones directamente contra la API.
+
+### Swagger UI
+
+Con el proyecto levantado, accede a:
+
+**http://localhost/api/documentation**
+
+---
+
+## 🧪 Ejecución de pruebas
+
+Para ejecutar toda la suite de pruebas automatizadas:
+
+```bash
+sail test
+```
+
+Esto ejecutará las pruebas configuradas en el proyecto y permitirá comprobar que las diferentes funcionalidades continúan funcionando correctamente.
+
+---
+
+## 🏗️ Arquitectura del proyecto
+
+El proyecto utiliza diferentes patrones y conceptos de diseño para mantener una separación clara de responsabilidades.
+
+### DTOs
+
+Los **Data Transfer Objects (DTOs)** se utilizan para transportar información entre las diferentes capas de la aplicación de forma estructurada y controlada.
+
+### Mappers
+
+Los **Mappers** se encargan de transformar los datos entre diferentes representaciones, evitando acoplar directamente las diferentes capas de la aplicación.
+
+### Eloquent ORM
+
+Laravel **Eloquent** se utiliza como ORM para gestionar la persistencia de los datos y las relaciones entre las diferentes entidades.
+
+### Comandos Artisan
+
+Los comandos personalizados de **Artisan** permiten encapsular procesos específicos de la aplicación.
+
+En este proyecto se utiliza, entre otros, el comando:
+
+```bash
+sail artisan rickandmorty:sync
+```
+
+para realizar la sincronización de datos con la API externa.
+
+### API Resources
+
+Los **API Resources** permiten controlar y estructurar las respuestas que devuelve la API, manteniendo un formato consistente.
+
+### Swagger / OpenAPI
+
+La API está documentada mediante **Swagger / OpenAPI**, facilitando la consulta de los endpoints y la realización de pruebas desde una interfaz gráfica.
+
+---
+
+## 🐳 Laravel Sail
+
+El proyecto utiliza **Laravel Sail** como entorno de desarrollo basado en Docker.
+
+Esto permite ejecutar la aplicación y sus servicios asociados sin necesidad de instalar y configurar manualmente todas las dependencias en el sistema local.
+
+Para iniciar el entorno:
+
+```bash
+./vendor/bin/sail up -d
+```
+
+Para detener los contenedores:
+
+```bash
+sail down
+```
+
+Para consultar los contenedores en ejecución:
+
+```bash
+sail ps
+```
+
+---
