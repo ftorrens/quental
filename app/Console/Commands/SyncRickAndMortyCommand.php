@@ -8,15 +8,8 @@ use Throwable;
 
 class SyncRickAndMortyCommand extends Command
 {
-    /**
-     * El nombre y la firma del comando.
-     */
     protected $signature = 'rickandmorty:sync';
-
-    /**
-     * La descripción del comando.
-     */
-    protected $description = 'Sincroniza datos desde la API externa de Rick and Morty hacia la base de datos local de forma idempotente.';
+    protected $description = 'Sincroniza datos desde la API externa hacia la BD local (Versión simplificada).';
 
     public function __construct(private readonly RickAndMortySyncService $syncService)
     {
@@ -37,12 +30,12 @@ class SyncRickAndMortyCommand extends Command
             });
 
             $duration = round(microtime(true) - $startTime, 2);
-            $this->info("¡Sincronización completada exitosamente en {$duration} segundos!");
+            $this->info("¡Sincronización completada en {$duration} segundos!");
 
             return Command::SUCCESS;
 
         } catch (Throwable $e) {
-            $this->error("Ocurrió un error fatal durante la sincronización: {$e->getMessage()}");
+            $this->error("Error fatal durante la sincronización: {$e->getMessage()}");
             return Command::FAILURE;
         }
     }

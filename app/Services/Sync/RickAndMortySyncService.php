@@ -2,142 +2,126 @@
 
 namespace App\Services\Sync;
 
-use App\Integration\RickAndMorty\RickAndMortyClient;
-use App\Integration\RickAndMorty\RickAndMortyMapper;
 use App\Models\Character;
 use App\Models\Episode;
 use App\Models\Location;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Throwable;
+use Illuminate\Support\Facades\Http;
+use Exception;
 
 class RickAndMortySyncService
 {
-    public function __construct(
-        private readonly RickAndMortyClient $client,
-        private readonly RickAndMortyMapper $mapper
-    ) {}
+    private const BASE_URL = 'https://rickandmortyapi.com/api';
 
     /**
-     * Sincroniza todas las entidades de la API externa respetando el orden de dependencias.
+     * @throws Exception
      */
     public function syncAll(?callable $progressCallback = null): void
     {
-        $this->syncLocations($progressCallback);
-        $this->syncEpisodes($progressCallback);
-        $this->syncCharacters($progressCallback);
-    }
-
-    public function syncLocations(?callable $callback = null): void
-    {
-        $this->paginateResource('location', function (array $item) {
-            $dto = $this->mapper->mapLocation($item);
-
+        // 1. Sincronizar Localizaciones
+        $this->syncResource('location', function (array $item) {
             Location::updateOrCreate(
-                ['external_id' => $dto->externalId],
+                ['external_id' => $item['id']],
                 [
-                    'name' => $dto->name,
-                    'type' => $dto->type,
-                    'dimension' => $dto->dimension,
+                    'name' => $item['name'],
+                    'type' => $item['type'] ?? null,
+                    'dimension' => $item['dimension'] ?? null,
                 ]
             );
-        }, $callback, 'Localizaciones');
-    }
+        }, $progressCallback);
 
-    public function syncEpisodes(?callable $callback = null): void
-    {
-        $this->paginateResource('episode', function (array $item) {
-            $dto = $this->mapper->mapEpisode($item);
-
+        // 2. Sincronizar Episodios
+        $this->syncResource('episode', function (array $item) {
             Episode::updateOrCreate(
-                ['external_id' => $dto->externalId],
+                ['external_id' => $item['id']],
                 [
-                    'name' => $dto->name,
-                    'air_date' => $dto->airDate,
-                    'episode_code' => $dto->episodeCode,
+                    'name' => $item['name'],
+                    'air_date' => $item['air_date'],
+                    'episode_code' => $item['episode'],
                 ]
             );
-        }, $callback, 'Episodios');
-    }
+        }, $progressCallback);
 
-    public function syncCharacters(?callable $callback = null): void
-    {
-        // Pre-cargamos en memoria la relación external_id => id local de Locations y Episodes
-        // Esto optimiza drásticamente el rendimiento evitando miles de consultas SQL en bucle
-        $locationsMap = Location::whereNotNull('external_id')->pluck('id', 'external_id');
-        $episodesMap = Episode::pluck('id', 'external_id');
+        // 3. Sincronizar Personajes
+        $this->syncResource('character', function (array $item) {
+            $character = Character::updateOrCreate(
+                ['external_id' => $item['id']],
+                [
+                    'name' => $item['name'],
+                    'status' => $item['status'],
+                    'species' => $item['species'],
+                    'type' => $item['type'] ?? null,
+                    'gender' => $item['gender'],
+                    'image' => $item['image'],
+                    'origin_external_id' => $this->extractIdFromUrl($item['origin']['url'] ?? ''),
+                    'location_external_id' => $this->extractIdFromUrl($item['location']['url'] ?? ''),
+                ]
+            );
 
-        $this->paginateResource('character', function (array $item) use ($locationsMap, $episodesMap) {
-            $dto = $this->mapper->mapCharacter($item);
-
-            DB::transaction(function () use ($dto, $locationsMap, $episodesMap) {
-                // Mapear los IDs externos a los IDs locales creados previamente
-                $originId = $dto->originExternalId ? ($locationsMap[$dto->originExternalId] ?? null) : null;
-                $locationId = $dto->locationExternalId ? ($locationsMap[$dto->locationExternalId] ?? null) : null;
-
-                $character = Character::updateOrCreate(
-                    ['external_id' => $dto->externalId],
-                    [
-                        'name' => $dto->name,
-                        'status' => $dto->status,
-                        'species' => $dto->species,
-                        'type' => $dto->type,
-                        'gender' => $dto->gender,
-                        'image' => $dto->image,
-                        'origin_id' => $originId,
-                        'location_id' => $locationId,
-                    ]
-                );
-
-                // Sincronizar la relación N:M con episodios (sync evita duplicados)
-                $episodeLocalIds = collect($dto->episodeExternalIds)
-                    ->map(fn ($extId) => $episodesMap[$extId] ?? null)
-                    ->filter()
-                    ->toArray();
-
-                $character->episodes()->sync($episodeLocalIds);
-            });
-        }, $callback, 'Personajes');
+            // Sincronizar la relación Muchos a Muchos con Episodios
+            if (!empty($item['episode'])) {
+                $episodeExternalIds = array_filter(array_map([$this, 'extractIdFromUrl'], $item['episode']));
+                
+                // Buscamos los IDs internos de la BD basados en los external_ids de la API
+                $localEpisodeIds = Episode::whereIn('external_id', $episodeExternalIds)->pluck('id');
+                $character->episodes()->sync($localEpisodeIds);
+            }
+        }, $progressCallback);
     }
 
     /**
-     * Método genérico para recorrer la paginación con tolerancia a fallos en elementos individuales.
+     * Recorre todas las páginas de un recurso de la API y procesa cada elemento.
      */
-    private function paginateResource(string $endpoint, callable $processor, ?callable $callback, string $resourceName): void
+    private function syncResource(string $resource, callable $processItem, ?callable $progressCallback): void
     {
         $page = 1;
+        $totalPages = 1;
 
         do {
-            try {
-                $response = $this->client->fetchPage($endpoint, $page);
+            $response = Http::timeout(5)
+                ->retry(3, 100)
+                ->get(self::BASE_URL . "/{$resource}", ['page' => $page]);
 
-                if (!$response || empty($response['results'])) {
-                    break;
-                }
-
-                foreach ($response['results'] as $item) {
-                    try {
-                        $processor($item);
-                    } catch (Throwable $e) {
-                        // Tolerancia a fallos parciales: si un ítem tiene formato corrupto, lo registramos y continuamos
-                        Log::error("Error procesando {$endpoint} ID {$item['id']}: " . $e->getMessage());
-                    }
-                }
-
-                if ($callback) {
-                    $callback($resourceName, $page, $response['info']['pages'] ?? $page);
-                }
-
-                $page = isset($response['info']['next']) ? $page + 1 : null;
-
-                // Pausa de 300ms entre solicitudes para no sobrepasar el Rate Limit de Cloudflare
-                usleep(300000);
-
-            } catch (Throwable $e) {
-                Log::critical("Fallo crítico al consultar la página {$page} de {$endpoint}: " . $e->getMessage());
-                break; // Rompemos el bucle ante una caída completa del servicio
+            if ($response->status() === 404) {
+                break; // Fin de la paginación
             }
 
-        } while ($page !== null);
+            $response->throw(); // Lanza excepción en caso de errores 500, etc.
+
+            $data = $response->json();
+            $totalPages = $data['info']['pages'] ?? 1;
+
+            // Usamos una transacción por página para mayor velocidad e integridad
+            DB::transaction(function () use ($data, $processItem) {
+                foreach ($data['results'] as $item) {
+                    $processItem($item);
+                }
+            });
+
+            if ($progressCallback) {
+                $progressCallback(ucfirst($resource), $page, $totalPages);
+            }
+
+            $page++;
+
+            // Pausa de 300ms entre solicitudes para no sobrepasar el Rate Limit de Cloudflare
+            usleep(300000);
+            
+        } while ($page <= $totalPages);
+    }
+
+    /**
+     * Extrae el ID de las URLs que proporciona la API.
+     */
+    private function extractIdFromUrl(?string $url): ?int
+    {
+        if (empty($url)) {
+            return null;
+        }
+
+        $parts = explode('/', rtrim($url, '/'));
+        $id = end($parts);
+
+        return is_numeric($id) ? (int) $id : null;
     }
 }
