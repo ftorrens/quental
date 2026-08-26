@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\FilterCharacterRequest;
 use App\Http\Resources\CharacterResource;
 use App\Models\Character;
 use Illuminate\Http\JsonResponse;
@@ -29,7 +30,7 @@ class CharacterController extends Controller
         description: 'Filtrar por estado (Alive, Dead, unknown)',
         in: 'query',
         required: false,
-        schema: new OA\Schema(type: 'string')
+        schema: new OA\Schema(type: 'string', enum: ['Alive', 'Dead', 'unknown'])
     )]
     #[OA\Parameter(
         name: 'species',
@@ -42,26 +43,27 @@ class CharacterController extends Controller
         response: 200,
         description: 'Lista de personajes'
     )]
-    public function index(Request $request): AnonymousResourceCollection
+    public function index(FilterCharacterRequest $request): AnonymousResourceCollection
     {
+        $filters = $request->validated();
+
         $query = Character::with(['origin', 'location']);
 
-        // Filtro por Nombre (búsqueda parcial)
-        if ($request->filled('name')) {
-            $query->where('name', 'like', '%' . $request->query('name') . '%');
+        if (!empty($filters['name'])) {
+            $query->where('name', 'like', '%' . $filters['name'] . '%');
         }
 
-        // Filtro por Estado (Alive, Dead, unknown)
-        if ($request->filled('status')) {
-            $query->where('status', $request->query('status'));
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
         }
 
-        // Filtro por Especie
-        if ($request->filled('species')) {
-            $query->where('species', 'like', '%' . $request->query('species') . '%');
+        if (!empty($filters['species'])) {
+            $query->where('species', 'like', '%' . $filters['species'] . '%');
         }
 
-        return CharacterResource::collection($query->paginate(15));
+        $perPage = $filters['per_page'] ?? 15;
+
+        return CharacterResource::collection($query->paginate($perPage));
     }
 
     #[OA\Get(

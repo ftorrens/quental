@@ -200,7 +200,12 @@
                         "description": "Filtrar por estado (Alive, Dead, unknown)",
                         "required": false,
                         "schema": {
-                            "type": "string"
+                            "type": "string",
+                            "enum": [
+                                "Alive",
+                                "Dead",
+                                "unknown"
+                            ]
                         }
                     },
                     {
