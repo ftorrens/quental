@@ -8,15 +8,14 @@ El proyecto está diseñado siguiendo una arquitectura organizada y mantenible, 
 
 ### Características principales
 
-* 🔌 Integración con la **API de Rick and Morty**.
-* 📦 Gestión de entidades mediante **DTOs (Data Transfer Objects)**.
-* 🔄 Transformación de datos mediante **Mappers**.
-* 🔗 Gestión de relaciones complejas entre entidades.
-* 🗄️ Persistencia de datos mediante **Eloquent ORM**.
-* 🐳 Entorno de desarrollo mediante **Docker + Laravel Sail**.
-* 🔄 Sincronización paginada de datos desde la API externa.
-* 📚 Documentación interactiva mediante **Swagger / OpenAPI**.
-* 🧪 Suite de pruebas automatizadas.
+* Integración con Rick and Morty API:** Sincronización paginada y optimizada con transacciones por lote (`DB::transaction`).
+* Autenticación con Laravel Sanctum:** Registro, inicio de sesión y gestión de tokens Bearer.
+* Validación Estricta y Seguridad (FormRequests):** Filtrado de datos, sanitización de parámetros Query (`FilterCharacterRequest`) y prevención de vulnerabilidades DoS/SQLi.
+* Gestión de Favoritos:** Relaciones muchos a muchos para marcar y listar personajes favoritos por usuario.
+* Persistencia mediante Eloquent ORM:** Modelado de personajes, ubicaciones, episodios y relaciones entre sí.
+* Entorno Dockerizado (Laravel Sail):** Configuración rápida y aislada para desarrollo local.
+* Documentación interactiva OpenAPI/Swagger:** Integración con L5-Swagger para probar la API gráficamente.
+* Suite de Pruebas Automatizadas:** Cobertura con PHPUnit / Pest (`sail test`).
 
 ---
 
